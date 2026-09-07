@@ -11,7 +11,7 @@ Import-Module ActiveDirectory
 $ExistingADUser = $null
 do {
     $InputEmail = Read-Host "Bitte die E-Mail-Adresse (UserPrincipalName) des Benutzers eingeben"
-    $ExistingADUser = Get-ADUser -Filter "UserPrincipalName -eq '$InputEmail'" -Properties GivenName, Surname, UserPrincipalName -ErrorAction SilentlyContinue
+    $ExistingADUser = Get-ADUser -Filter "UserPrincipalName -eq '$InputEmail'" -Properties GivenName, Surname, UserPrincipalName, Manager -ErrorAction SilentlyContinue
     if (-not $ExistingADUser) {
         Write-Host "Kein Benutzer mit der E-Mail-Adresse '$InputEmail' gefunden. Bitte erneut versuchen." -ForegroundColor Yellow
     }
@@ -21,8 +21,20 @@ $saccount = $ExistingADUser.SamAccountName
 $givenname = $ExistingADUser.GivenName
 $surname = $ExistingADUser.Surname
 $upn = $ExistingADUser.UserPrincipalName
+$prefix = $saccount.Substring(0,3)
+$domain = ($upn -split "@")[1]
+$fullname = "$givenname $surname"
 
 Write-Host "Gefundener Benutzer: $saccount ($upn)" -ForegroundColor Cyan
+
+# Manager aus dem AD-Attribut "Manager" des Benutzers ermitteln
+$managerName = ""
+if ($ExistingADUser.Manager) {
+    $managerName = (Get-ADUser -Identity $ExistingADUser.Manager -Properties DisplayName).DisplayName
+    Write-Host "Manager: $managerName" -ForegroundColor Cyan
+} else {
+    Write-Host "Kein Manager-Attribut fuer $saccount in AD gesetzt." -ForegroundColor Yellow
+}
 
 #####################################################################
 ##############          PASSWORT GENERIEREN               ###########
@@ -72,12 +84,22 @@ $Excel.DisplayAlerts = $false
 $Excel.Visible = $true
 $Workbook = $Excel.Workbooks.Open("C:\IT\NewITUser\ExternalUser.xlsm")
 $SheetDrucken = $Workbook.Worksheets.Item("Drucken")
+$SheetConstructData = $Workbook.Worksheets.Item("ConstructData")
 
 $SheetDrucken.Range("L10").Value = [string]$givenname
 $SheetDrucken.Range("L11").Value = [string]$surname
 $SheetDrucken.Range("L13").Value = [string]$upn
 $SheetDrucken.Range("L14").Value = [string]$saccount
 $SheetDrucken.Range("L15").Value = [string]$password
+
+$SheetConstructData.Range("B5").Value = [string]$givenname
+$SheetConstructData.Range("B6").Value = [string]$surname
+$SheetConstructData.Range("B7").Value = [string]$prefix
+$SheetConstructData.Range("B8").Value = [string]$domain
+$SheetConstructData.Range("B9").Value = [string]$upn
+$SheetConstructData.Range("B10").Value = [string]$saccount
+$SheetConstructData.Range("B12").Value = [string]$managerName
+$SheetConstructData.Range("B13").Value = [string]$fullname
 
 $Workbook.Save()
 
