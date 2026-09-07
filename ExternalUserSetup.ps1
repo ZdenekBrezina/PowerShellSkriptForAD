@@ -81,7 +81,7 @@ Get-Process -Name Excel -ErrorAction SilentlyContinue | ForEach-Object { if (-no
 
 $Excel = New-Object -ComObject Excel.Application
 $Excel.DisplayAlerts = $false
-$Excel.Visible = $true
+$Excel.Visible = $false
 $Workbook = $Excel.Workbooks.Open("C:\IT\NewITUser\ExternalUser.xlsm")
 $SheetDrucken = $Workbook.Worksheets.Item("Drucken")
 $SheetConstructData = $Workbook.Worksheets.Item("ConstructData")
@@ -102,6 +102,24 @@ $SheetConstructData.Range("B12").Value = [string]$managerName
 $SheetConstructData.Range("B13").Value = [string]$fullname
 
 $Workbook.Save()
+$Workbook.Close($true)
+$Excel.Quit()
+
+try {
+    if ($SheetConstructData) { [System.Runtime.Interopservices.Marshal]::ReleaseComObject($SheetConstructData) | Out-Null }
+    if ($SheetDrucken) { [System.Runtime.Interopservices.Marshal]::ReleaseComObject($SheetDrucken) | Out-Null }
+    if ($Workbook) { [System.Runtime.Interopservices.Marshal]::ReleaseComObject($Workbook) | Out-Null }
+    if ($Excel) { [System.Runtime.Interopservices.Marshal]::ReleaseComObject($Excel) | Out-Null }
+}
+catch {
+    Write-Host "Error releasing COM objects: $_"
+}
+
+[GC]::Collect()
+[GC]::WaitForPendingFinalizers()
+[GC]::Collect()
+
+Stop-Process -Name "EXCEL" -Force -ErrorAction SilentlyContinue
 
 Write-Host "==================================================================================="
 Write-Host "SamAccountName: $saccount"
@@ -110,7 +128,7 @@ Write-Host "Surname: $surname"
 Write-Host "UserPrincipalName: $upn"
 Write-Host "Password: $password"
 Write-Host "==================================================================================="
-Write-Host "ExternalUser.xlsm wurde aktualisiert und bleibt geoeffnet (Sheet 'Drucken')." -ForegroundColor Green
+Write-Host "ExternalUser.xlsm wurde aktualisiert und gespeichert (im Hintergrund, ohne Anzeige)." -ForegroundColor Green
 
 #####################################################################
 ##############          PASSWORT ZURUECKSETZEN              ##########
